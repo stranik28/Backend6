@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+    <form action="/" method="GET">
+    Back to fill new form
+    <br/>
+    <button type="submit">Go back</button>
+    </form>
+    <form action="/login" method="post">
+        Your login
+        <br/>
+        <input type="text" name = "login"></input>
+        <br/>
+        Your password
+        <br/>
+        <input type="password" name = "password"></input>
+        <br/>
+        <button type="submit">Login</button>
+    </form>
+    {% with messages = get_flashed_messages() %}
+        {% if messages %}
+            {% for message in messages %}
+                {{ message }}
+            {% endfor %}
+        {% endif %}
+    {% endwith %}
+</html>
