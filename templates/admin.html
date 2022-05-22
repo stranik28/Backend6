@@ -1,0 +1,21 @@
+<html>
+    <form action="add-admin" method="get">
+        <button type="submit">Add new admins</button>
+    </form>
+    Total users with superpowers: <br/>
+    immortal: {{immortal}} <br/>
+    passing through wall: {{wall}} <br/>
+    levitation: {{levitation}} <br/>
+    <br/>
+    {% for table in tables %}
+            {{titles[loop.index]}}
+            {{ table|safe }}
+    {% endfor %}
+    <br/>
+    <form action="/rest-auth" method="POST">
+        <label>Delete row with id:</label>
+        <input id="id_del" class="id_del" name = "id_del"/>
+        <button>Delete</button>
+    </form>
+
+</html>

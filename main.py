@@ -12,9 +12,12 @@ from wtforms.validators import DataRequired, Email, ValidationError
 from werkzeug.security import generate_password_hash, check_password_hash
 import random
 import string
+from flask_httpauth import HTTPBasicAuth
+import pandas as pd
 
 
 app = Flask(__name__)
+auth = HTTPBasicAuth()
 
 app.config.from_object('config')
 
@@ -91,9 +94,7 @@ def post():
         sup = ''.join(superpowers)
         bio = form.bio.data
         check = form.check.data
-        print("Before")
         if 'user' in session:
-            print("Here")
             cursor = mysql.connection.cursor()
             cursor.execute(''' SELECT id FROM users WHERE login = %s ;''', [session['user']])
             s = cursor.fetchall()
@@ -110,7 +111,6 @@ def post():
             res.set_cookie('form_ok', cook , max_age=60*60*24*365)
             res.set_cookie('form_err', '0', max_age=0)
         else:
-            print("Not here")
             cursor = mysql.connection.cursor()
             cursor.execute(''' INSERT INTO form VALUES (%s,%s,%s,%s,%s,%s,%s,%s) ''', (0,name,email,birth_date,gender,limbs,bio,check))
             cursor.execute(''' INSERT INTO super VALUES(0,%s) ''', [sup])
@@ -188,6 +188,102 @@ def logIn():
         res = render_template("login.html")
         flash("Wrong login/pass")
     return res
+
+
+
+@auth.verify_password
+def verify_password(username, password):
+    cursor = mysql.connection.cursor()
+    cursor.execute(''' SELECT password FROM admins WHERE login = %s ; ''', [username])
+    password_new = cursor.fetchall()
+    cursor.close()
+    # print(password_new)
+    if check_password_hash(password_new[0][0],password):
+        return username
+    
+
+@app.route('/rest-auth', methods=["GET"])
+@auth.login_required
+def get_response():
+    name = []
+    email = []
+    datas = []
+    limbs = []
+    gender = []
+    bio = []
+    id = []
+    supe = []
+    cursor = mysql.connection.cursor()
+    cursor.execute(''' SELECT * FROM form; ''')
+    s = cursor.fetchall()
+    cursor.execute(''' SELECT * FROM super; ''')
+    s2 = cursor.fetchall()
+    cursor.close()
+    t1 = 0
+    t2 = 0
+    t3 = 0
+    for i in range(0,len(s)):
+        id.append(s[i][0])
+        name.append(s[i][1])
+        email.append(s[i][2])
+        datas.append(s[i][3])
+        gender.append(s[i][4])
+        limbs.append(s[i][5])
+        bio.append(s[i][6])
+        supe.append(s2[i][1])
+        buf = int(s2[i][1])
+        while buf >= 1:
+            h = buf % 10
+            if h == 1:
+                t1 +=1
+            elif h == 2:
+                t2 +=1
+            elif h == 3:
+                t3 +=1
+            buf //= 10
+    df = pd.DataFrame({
+        'id' : id,
+        'name': name,
+        'email': email,
+        'data':datas,
+        'gender':gender,
+        'limbs':limbs,
+        'bio':bio,
+        'super' : supe
+    })
+    return render_template("admin.html", tables=[df.to_html(classes='data')], titles=df.columns.values, immortal = t1, wall = t2, levitation = t3)
+
+@app.route('/rest-auth', methods=["post"])
+@auth.login_required
+def del_user():
+    id = int(request.form.get("id_del"))
+    cursor = mysql.connection.cursor()
+    cursor.execute(''' DELETE FROM form WHERE id = %s ; ''', [id])
+    cursor.connection.commit()
+    cursor.execute(''' DELETE FROM super WHERE id = %s ;''', [id])
+    cursor.connection.commit()
+    cursor.close()
+
+    return redirect(url_for('form'))
+
+@app.route('/add-admin', methods=['GET'])
+@auth.login_required
+def get_admins():
+    return render_template('admin_add.html')
+
+@app.route('/add-admin', methods=["post"])
+@auth.login_required
+def add_admins():
+    login = request.form.get("login")
+    password = request.form.get("password")
+    hash = generate_password_hash(password)
+    cursor = mysql.connection.cursor()
+    cursor.execute(''' INSERT INTO admins VALUES (%s,%s,%s) ''', (0,login, hash))
+    cursor.connection.commit()
+    cursor.close()
+    print("Ok")
+    return redirect(url_for("add_admins"))
+
 
 if __name__ == "__main__":
     app.run()
