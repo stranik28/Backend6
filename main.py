@@ -41,7 +41,7 @@ class ContactForm(FlaskForm):
     submit = SubmitField()
 
     def validate_name(self, field):
-        if not re.match(r"^\S*$", field.data):
+        if not re.match(r"^[A-Za-z0-9]*$", field.data):
             style={'style' : 'border : 2px solid red'}
             field.render_kw = style 
             raise ValidationError('You can use only non space letter')
@@ -52,6 +52,12 @@ class ContactForm(FlaskForm):
             style={'style' : 'border : 2px solid red'}
             field.render_kw = style 
             raise ValidationError('Seems like u use invalid email address or use non English letters') 
+
+    def validate_bio(self, field):
+        if not re.match(r'''[^'"<>]*$''', field.data):
+            style={'style' : 'border : 2px solid red'}
+            field.render_kw = style 
+            raise ValidationError('''You cannot use quotes and scripts''')
 
 
 
@@ -165,7 +171,12 @@ def logIn():
     cursor.execute(''' SELECT * FROM users WHERE login = %s ''', [username]);
     datas = cursor.fetchall();
     cursor.close()
-    if check_password_hash(datas[0][2],password):
+    print(datas)
+    print(len(datas))
+    if len(datas) == 0:
+        res = render_template("login.html")
+        flash("Wrong login/pass")
+    elif check_password_hash(datas[0][2],password):
         print("ses")
         session['user'] = username
         cursor = mysql.connection.cursor()
@@ -205,6 +216,7 @@ def verify_password(username, password):
 @app.route('/rest-auth', methods=["GET"])
 @auth.login_required
 def get_response():
+    print("GET")
     name = []
     email = []
     datas = []
@@ -263,8 +275,53 @@ def del_user():
     cursor.execute(''' DELETE FROM super WHERE id = %s ;''', [id])
     cursor.connection.commit()
     cursor.close()
-
-    return redirect(url_for('form'))
+    name = []
+    email = []
+    datas = []
+    limbs = []
+    gender = []
+    bio = []
+    id = []
+    supe = []
+    cursor = mysql.connection.cursor()
+    cursor.execute(''' SELECT * FROM form; ''')
+    s = cursor.fetchall()
+    cursor.execute(''' SELECT * FROM super; ''')
+    s2 = cursor.fetchall()
+    cursor.close()
+    t1 = 0
+    t2 = 0
+    t3 = 0
+    for i in range(0,len(s)):
+        id.append(s[i][0])
+        name.append(s[i][1])
+        email.append(s[i][2])
+        datas.append(s[i][3])
+        gender.append(s[i][4])
+        limbs.append(s[i][5])
+        bio.append(s[i][6])
+        supe.append(s2[i][1])
+        buf = int(s2[i][1])
+        while buf >= 1:
+            h = buf % 10
+            if h == 1:
+                t1 +=1
+            elif h == 2:
+                t2 +=1
+            elif h == 3:
+                t3 +=1
+            buf //= 10
+    df = pd.DataFrame({
+        'id' : id,
+        'name': name,
+        'email': email,
+        'data':datas,
+        'gender':gender,
+        'limbs':limbs,
+        'bio':bio,
+        'super' : supe
+    })
+    return render_template("admin.html", tables=[df.to_html(classes='data')], titles=df.columns.values, immortal = t1, wall = t2, levitation = t3)
 
 @app.route('/add-admin', methods=['GET'])
 @auth.login_required
