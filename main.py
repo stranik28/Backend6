@@ -208,9 +208,12 @@ def verify_password(username, password):
     cursor.execute(''' SELECT password FROM admins WHERE login = %s ; ''', [username])
     password_new = cursor.fetchall()
     cursor.close()
-    # print(password_new)
-    if check_password_hash(password_new[0][0],password):
+    if len(password_new) == 0:
+        return False
+    elif check_password_hash(password_new[0][0],password):
         return username
+    else:
+        return False
     
 
 @app.route('/rest-auth', methods=["GET"])
